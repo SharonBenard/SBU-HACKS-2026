@@ -20,7 +20,7 @@ function toLocalInput(d: Date): string {
 
 export function Me() {
   const world = useApp()
-  const { data, dispatch, today } = world
+  const { data, dispatch, today, demoMode, endDemo } = world
   const toast = useToast()
   const navigate = useNavigate()
   const profile = data.profile!
@@ -246,6 +246,11 @@ export function Me() {
         className="btn btn-danger btn-block"
         disabled={signingOut}
         onClick={async () => {
+          if (demoMode) {
+            endDemo()
+            navigate('/welcome', { replace: true })
+            return
+          }
           setSigningOut(true)
           try {
             await signOut()
@@ -257,7 +262,7 @@ export function Me() {
           }
         }}
       >
-        {signingOut ? 'Signing out…' : 'Sign out'}
+        {demoMode ? 'Exit demo' : signingOut ? 'Signing out…' : 'Sign out'}
       </button>
     </div>
   )

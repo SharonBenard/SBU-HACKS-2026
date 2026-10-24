@@ -6,6 +6,7 @@ import { getFriendStatuses } from '../services/friendsApi'
 import { minutesOfDay, toISODate } from '../lib/dates'
 import { isStatusActive } from './selectors'
 import { initialsOf } from '../lib/ids'
+import { sampleParsedSchedule } from '../data/sampleData'
 import { createClient } from '../../utils/supabase/client'
 import type { Session as SupabaseSession, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database.types'
@@ -20,11 +21,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null)
   const [persistenceError, setPersistenceError] = useState<string | null>(null)
   const [readyUserId, setReadyUserId] = useState<string | null>(null)
+  const [demoMode, setDemoMode] = useState(false)
   const [realNow, setRealNow] = useState(() => new Date())
   const [sessionStart] = useState(() => new Date())
   const clientRef = useRef<SupabaseClient<Database> | null>(null)
   const activeUserIdRef = useRef<string | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+
+  const startDemo = useCallback(() => {
+    const demoData = initialData(new Date())
+    demoData.onboarding = 'done'
+    demoData.schedule = sampleParsedSchedule()
+    demoData.profile = {
+      id: 'me',
+      name: 'Demo Student',
+      initials: 'DS',
+      color: '#F6D27A',
+      email: 'demo@example.invalid',
+      commuter: true,
+      town: '',
+      interests: ['Food', 'Cafés'],
+    }
+    setReadyUserId(null)
+    dispatch({ type: 'replaceData', data: demoData })
+    setDemoMode(true)
+  }, [])
+
+  const endDemo = useCallback(() => {
+    setDemoMode(false)
+    dispatch({ type: 'replaceData', data: initialData(new Date()) })
+  }, [])
 
   useEffect(() => {
     const timer = setInterval(() => setRealNow(new Date()), 30_000)
@@ -152,8 +178,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       authLoading,
       authError,
       persistenceError,
+      demoMode,
+      startDemo,
+      endDemo,
     }
-  }, [data, realNow, sessionStart, authLoading, authError, persistenceError])
+  }, [data, realNow, sessionStart, authLoading, authError, persistenceError, demoMode, startDemo, endDemo])
 
   return (
     <AppContext.Provider value={value}>

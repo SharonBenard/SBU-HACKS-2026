@@ -48,8 +48,9 @@ Vercel) so links like `/plan/:id?invite=…` work on refresh.
 
 ## Demo walkthrough
 
-1. **Welcome → Get started**. Enter your name and `@stonybrook.edu` address, then open the magic link Supabase
-   emails you.
+1. **Welcome → Sign up**. Use **Continue as demo** to enter with sample data without signing in; demo changes
+   stay in memory and are not saved. Or enter your name and `@stonybrook.edu` address, then open the magic link
+   Supabase emails you.
 2. **Add your schedule**. Upload any image to see simulated parsing, or enter it manually. Tap hours to fix them
    and add work, meeting or commute blocks.
 3. **Pick interests**, then land on **Home**. Two friends are "free now", and two have set a status for an evening

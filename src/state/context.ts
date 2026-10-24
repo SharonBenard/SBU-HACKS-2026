@@ -17,6 +17,9 @@ export interface AppContextValue extends World {
   authLoading: boolean
   authError: string | null
   persistenceError: string | null
+  demoMode: boolean
+  startDemo: () => void
+  endDemo: () => void
 }
 
 export const AppContext = createContext<AppContextValue | null>(null)

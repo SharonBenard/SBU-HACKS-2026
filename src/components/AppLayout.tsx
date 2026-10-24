@@ -3,9 +3,11 @@ import { Link, NavLink, Outlet } from 'react-router'
 import { useApp } from '../state/context'
 import { isMine, isPlanUpcoming, rsvpOf } from '../state/selectors'
 import { Duck } from './Duck'
+import { Notice } from './Notice'
 
 export function AppLayout() {
   const world = useApp()
+  const { demoMode } = world
   const pendingInvites = world.data.plans.filter(
     (p) => isMine(p) && rsvpOf(p, 'me') === 'waiting' && isPlanUpcoming(p, world.now),
   ).length
@@ -54,6 +56,7 @@ export function AppLayout() {
         </ul>
       </nav>
       <main id="main" className="app-main" tabIndex={-1}>
+        {demoMode && <Notice tone="demo">Demo mode · changes are not saved and no account is signed in.</Notice>}
         <Outlet />
       </main>
     </div>
