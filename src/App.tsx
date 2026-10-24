@@ -20,6 +20,7 @@ import { FreeTime } from './pages/FreeTime'
 import { Me } from './pages/Me'
 import { EditSchedule } from './pages/EditSchedule'
 import { Blocked } from './pages/Blocked'
+import { AuthCallback } from './pages/AuthCallback'
 
 function NotFound() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
       <BrowserRouter>
         <ScrollToTop />
         <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
           <Route element={<RedirectIfSignedIn />}>
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/signup" element={<SignUp />} />

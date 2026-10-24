@@ -3,7 +3,6 @@ import { Link, NavLink, Outlet } from 'react-router'
 import { useApp } from '../state/context'
 import { isMine, isPlanUpcoming, rsvpOf } from '../state/selectors'
 import { Duck } from './Duck'
-import { Notice } from './Notice'
 
 export function AppLayout() {
   const world = useApp()
@@ -55,13 +54,6 @@ export function AppLayout() {
         </ul>
       </nav>
       <main id="main" className="app-main" tabIndex={-1}>
-        {!world.storageOk && (
-          <div className="page" style={{ paddingBottom: 0 }}>
-            <Notice tone="error" role="alert">
-              This browser is blocking storage, so changes will be lost when you close the tab.
-            </Notice>
-          </div>
-        )}
         <Outlet />
       </main>
     </div>

@@ -14,7 +14,9 @@ export interface World {
 
 export interface AppContextValue extends World {
   dispatch: Dispatch<Action>
-  storageOk: boolean
+  authLoading: boolean
+  authError: string | null
+  persistenceError: string | null
 }
 
 export const AppContext = createContext<AppContextValue | null>(null)

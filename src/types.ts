@@ -137,10 +137,9 @@ export interface UserProfile {
 }
 
 export interface Session {
+  userId: string
   email: string
   verified: boolean
-  /** Always true until a real auth provider is connected. */
-  demo: true
 }
 
 export type OnboardingStep = 'schedule' | 'review' | 'interests' | 'done'

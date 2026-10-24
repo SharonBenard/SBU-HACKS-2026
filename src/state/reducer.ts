@@ -5,16 +5,14 @@ import type {
   Person,
   Plan,
   Rsvp,
-  Session,
   Status,
   UserProfile,
   WeeklySchedule,
 } from '../types'
 import { SEED_FRIENDSHIPS, samplePlans } from '../data/sampleData'
-import { initialsOf } from '../lib/ids'
 
 export type Action =
-  | { type: 'signIn'; session: Session; name: string }
+  | { type: 'replaceData'; data: AppData }
   | { type: 'setOnboarding'; step: OnboardingStep }
   | { type: 'setSchedule'; schedule: WeeklySchedule }
   | { type: 'updateProfile'; patch: Partial<Omit<UserProfile, 'id'>> }
@@ -30,8 +28,6 @@ export type Action =
   | { type: 'block'; personId: string }
   | { type: 'unblock'; personId: string }
   | { type: 'setDemoClock'; iso: string | null }
-  | { type: 'signOut' }
-  | { type: 'resetDemo'; now: Date }
 
 export function initialData(now: Date): AppData {
   return {
@@ -51,26 +47,8 @@ export function initialData(now: Date): AppData {
 
 export function reducer(state: AppData, action: Action): AppData {
   switch (action.type) {
-    case 'signIn': {
-      const name = action.name.trim()
-      const initials = initialsOf(name)
-      return {
-        ...state,
-        session: action.session,
-        onboarding: state.schedule ? state.onboarding : 'schedule',
-        profile: {
-          id: 'me',
-          name,
-          initials: initials || 'ME',
-          color: '#F6D27A',
-          email: action.session.email,
-          commuter: state.profile?.commuter ?? true,
-          town: state.profile?.town ?? '',
-          interests: state.profile?.interests ?? [],
-          energy: state.profile?.energy,
-        },
-      }
-    }
+    case 'replaceData':
+      return action.data
     case 'setOnboarding':
       return { ...state, onboarding: action.step }
     case 'setSchedule':
@@ -126,9 +104,5 @@ export function reducer(state: AppData, action: Action): AppData {
       return { ...state, blocked: state.blocked.filter((id) => id !== action.personId) }
     case 'setDemoClock':
       return { ...state, demoClock: action.iso }
-    case 'signOut':
-      return { ...state, session: null }
-    case 'resetDemo':
-      return initialData(action.now)
   }
 }

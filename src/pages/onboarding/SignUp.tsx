@@ -2,12 +2,10 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { MailCheck } from 'lucide-react'
 import { OnboardingFrame } from './OnboardingFrame'
-import { DemoTag, Notice } from '../../components/Notice'
-import { completeDemoSignIn, requestSignInLink, validateSignUp } from '../../services/auth'
-import { useApp } from '../../state/context'
+import { Notice } from '../../components/Notice'
+import { requestSignInLink, validateSignUp } from '../../services/auth'
 
 export function SignUp() {
-  const { dispatch } = useApp()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -22,20 +20,14 @@ export function SignUp() {
     if (found.name || found.email) return
     setSending(true)
     try {
-      const result = await requestSignInLink(email)
+      const result = await requestSignInLink(email, name)
       if (result.ok) setSentTo(result.email)
       else setErrors({ email: result.error })
-    } catch {
-      setErrors({ form: 'Something went wrong sending your link. Try again.' })
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : 'Something went wrong sending your link.' })
     } finally {
       setSending(false)
     }
-  }
-
-  const finish = () => {
-    if (!sentTo) return
-    dispatch({ type: 'signIn', session: completeDemoSignIn(sentTo), name })
-    navigate('/onboarding/schedule')
   }
 
   if (sentTo) {
@@ -44,16 +36,11 @@ export function SignUp() {
         <div className="card stack" style={{ alignItems: 'flex-start' }}>
           <MailCheck size={32} aria-hidden color="var(--blue-text)" />
           <p>
-            In the real app we'd send a sign-in link to <strong>{sentTo}</strong>. Opening it proves you're an SBU
-            student.
+            We sent a sign-in link to <strong>{sentTo}</strong>. Open it to verify your SBU email and continue.
           </p>
         </div>
-        <Notice tone="demo">
-          <DemoTag /> No email was sent. Demo sign-in skips the link and marks this address as verified on this
-          device only.
-        </Notice>
-        <button type="button" className="btn btn-primary btn-block" onClick={finish}>
-          Continue as verified (demo)
+        <button type="button" className="btn btn-primary btn-block" onClick={() => navigate('/welcome')}>
+          Back to welcome
         </button>
         <button type="button" className="btn-link" onClick={() => setSentTo(null)}>
           Use a different email
@@ -120,9 +107,8 @@ export function SignUp() {
           )}
         </button>
       </form>
-      <Notice tone="demo">
-        <DemoTag /> Authentication is simulated. The @stonybrook.edu check here is in the browser only. A production
-        backend must enforce it on the server.
+      <Notice tone="info">
+        Supabase sends the one-time link. The database also enforces the @stonybrook.edu domain for new accounts.
       </Notice>
     </OnboardingFrame>
   )

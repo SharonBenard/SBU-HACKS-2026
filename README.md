@@ -3,8 +3,27 @@
 A mobile-first web app that helps Stony Brook students find shared free time with friends, get activity ideas
 that fit everyone's time and budget, and make private plans friends RSVP to.
 
-Built with React 19, TypeScript, Vite and React Router. Everything runs in the browser with sample data and
-`localStorage`, so the full flow works without accounts, keys or a backend.
+Built with React 19, TypeScript, Vite, React Router and Supabase. Email-link authentication and each signed-in
+user's profile, schedule, status and plan state are stored in Supabase. Friend directories and friends' schedules
+and statuses, activity suggestions and venue data remain sample/demo data.
+
+## Supabase setup
+
+1. Copy `.env.example` to `.env.local` and fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from the
+   Supabase project settings. These are browser-visible project values; never put a service-role key in a `VITE_`
+   variable.
+2. Apply the SQL files in `supabase/migrations/` in numeric order using the Supabase SQL Editor. If using the
+   Supabase CLI, rename them to its timestamp-prefixed migration format first. The first migration creates the
+   app's base tables and SBU email restriction; the second creates the per-user JSONB state table with row-level
+   security; the third also enforces the SBU domain on email changes.
+3. In Supabase Auth URL Configuration, set the local site URL to `http://localhost:5173` and add
+   `http://localhost:5173/auth/callback` to the allowed redirect URLs. Add the equivalent callback URL for each
+   deployed origin.
+4. Run the app and sign up with an `@stonybrook.edu` address. Supabase sends a one-time link; opening it returns
+   to `/auth/callback`.
+
+If a local environment file already exists, ensure it is named `.env.local` and uses the `VITE_` variable names.
+Vite does not load a file named `.env local` or variables named `NEXT_PUBLIC_*`.
 
 ## Run it
 
@@ -21,7 +40,8 @@ Vercel) so links like `/plan/:id?invite=…` work on refresh.
 
 ## Demo walkthrough
 
-1. **Welcome → Get started**. Enter any name and a `@stonybrook.edu` address, then **Continue as verified (demo)**.
+1. **Welcome → Get started**. Enter your name and `@stonybrook.edu` address, then open the magic link Supabase
+   emails you.
 2. **Add your schedule**. Upload any image to see simulated parsing, or enter it manually. Tap hours to fix them
    and add work, meeting or commute blocks.
 3. **Pick interests**, then land on **Home**. Two friends are "free now", and two have set a status for an evening
@@ -32,11 +52,11 @@ Vercel) so links like `/plan/:id?invite=…` work on refresh.
 5. Pick an activity (or write your own idea) and **Continue**. Edit the plan details, deselect friends if you
    like, and **Create plan**. Copy the invite link, then **View plan**.
 6. On the plan page, **Simulate friends' replies** (demo) fills in RSVPs. On Home or Plans, RSVP to Priya's
-   thrift run. Changes show up everywhere.
+   thrift run. Changes are saved to your account.
 7. **Free time** shows the week grid. Tap a slot, then **Plan for this time**. The **Friends** tab has a pending
    request to accept.
 8. **Me** covers energy (resets at midnight), interests, schedule editing, privacy, blocked users and sign-out.
-   **Demo settings** can pin the clock (for example, to a weekday lunchtime) or reset all demo data.
+   **Demo settings** can pin the clock (for example, to a weekday lunchtime).
 
 ## Project layout
 
@@ -63,18 +83,20 @@ the current (or pinned demo) time, so the sample data works on any day.
 
 | Area | Status in this build | Where to replace |
 | --- | --- | --- |
-| **Authentication** | Simulated. No email is sent; "Continue as verified (demo)" signs you in. The `@stonybrook.edu` check runs only in the browser. | `src/services/auth.ts` → e.g. Supabase magic links, with the domain check enforced server-side |
+| **Authentication** | Supabase Auth sends PKCE email links. The `@stonybrook.edu` domain is checked in the UI and by the auth-user database triggers. | `src/services/auth.ts`, `src/pages/AuthCallback.tsx`, `supabase/migrations/001_init.sql`, `supabase/migrations/003_enforce_sbu_email_updates.sql` |
 | **Schedule parsing** | Simulated. The uploaded image isn't read or uploaded; a fixed sample schedule is returned for review. Manual entry works fully. | `src/services/scheduleParser.ts` → a server-side route calling a vision model |
 | **Activity suggestions** | A deterministic rule-based ranker over a curated list stands in for the AI service, labeled in the UI. | `src/services/recommendations.ts` → a server-side model call restricted to curated ids |
 | **Activity data** | Hand-curated local spots. Costs are rough estimates, not live prices; no live hours or availability. Some venues are generic ("Bowling alley near campus"). | `src/data/activities.ts` |
-| **Friends & statuses** | Sample people with sample schedules and statuses. Friend requests are saved locally and nobody is notified. | `src/services/friendsApi.ts` |
+| **Friends & statuses** | Sample people, schedules and statuses. Friend requests are not yet backed by live user records or notifications. | `src/services/friendsApi.ts` and the relational tables in `supabase/migrations/001_init.sql` |
 | **Invitations & reminders** | No email or push notifications are sent. Reminders are stored as preferences only. | `src/services/notifications.ts` |
-| **Invite links** | Links work only in the browser that created the plan, because there's no shared database. | Backend persistence |
+| **Invite links** | Plans are persisted for the signed-in owner, but invite links and cross-account sharing are not connected to the relational `events` tables yet. | `supabase/migrations/001_init.sql` |
 | **Friends' RSVPs** | Only change when you use "Simulate friends' replies". | Backend + realtime updates |
-| **Reporting users** | Blocking works locally; reporting needs a moderation backend and says so. | — |
-| **Persistence** | `localStorage` only (`src/services/storage.ts`). | Supabase / Firebase |
+| **Reporting users** | Blocking is saved to the signed-in account; reporting needs a moderation backend and says so. | — |
+| **Persistence** | Current app state is saved per authenticated user in `user_app_state` in Supabase, protected by row-level security. Existing browser-only demo data is not imported automatically. | `src/services/accountData.ts`, `supabase/migrations/002_user_app_state.sql` |
 
-No API keys or secrets are in the frontend. Any future model calls should go through a server route.
+The Supabase anon/publishable key is necessarily visible in the browser; row-level security protects user data.
+Never expose the Supabase service-role key or model API keys in frontend variables. Any future model calls should
+go through a server route.
 
 ## Not yet built
 

@@ -1,14 +1,5 @@
-/**
- * DEMO authentication. No email is sent and nothing is verified.
- *
- * Replace with a real magic-link provider (for example Supabase Auth). The
- * @stonybrook.edu check below is UI-only; production must enforce it on the
- * server or in a database rule as well.
- */
-import type { Session } from '../types'
 import { isSbuEmail } from '../lib/ids'
-
-export const AUTH_IS_DEMO = true
+import { createClient } from '../../utils/supabase/client'
 
 export type SignInResult = { ok: true; email: string } | { ok: false; error: string }
 
@@ -20,14 +11,25 @@ export function validateSignUp(name: string, email: string): { name?: string; em
   return errors
 }
 
-export async function requestSignInLink(email: string): Promise<SignInResult> {
-  await new Promise((r) => setTimeout(r, 700))
+export async function requestSignInLink(email: string, name: string): Promise<SignInResult> {
   const normalized = email.trim().toLowerCase()
   if (!isSbuEmail(normalized)) return { ok: false, error: 'Only @stonybrook.edu addresses can join.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithOtp({
+    email: normalized,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      data: { display_name: name.trim() },
+    },
+  })
+
+  if (error) return { ok: false, error: error.message }
   return { ok: true, email: normalized }
 }
 
-/** In the demo there is no link to click; this stands in for the callback. */
-export function completeDemoSignIn(email: string): Session {
-  return { email, verified: true, demo: true }
+export async function signOut(): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signOut()
+  if (error) throw new Error(`Could not sign out: ${error.message}`)
 }

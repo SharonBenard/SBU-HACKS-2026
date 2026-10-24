@@ -11,7 +11,7 @@ import { DemoTag, Notice } from '../components/Notice'
 import { ENERGY_OPTIONS } from '../lib/labels'
 import { scheduleSummary } from '../lib/schedule'
 import { initialsOf } from '../lib/ids'
-import { clearData } from '../services/storage'
+import { signOut } from '../services/auth'
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -36,7 +36,7 @@ export function Me() {
   const [interests, setInterests] = useState(profile.interests)
 
   const [clock, setClock] = useState(toLocalInput(world.now))
-  const [confirmReset, setConfirmReset] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
 
   const saveProfile = () => {
     if (!name.trim()) return setNameError('Name can’t be empty.')
@@ -239,42 +239,25 @@ export function Me() {
           </button>
         </div>
         {data.demoClock && <Notice tone="warm">Clock pinned to {new Date(data.demoClock).toLocaleString()}.</Notice>}
-        {confirmReset ? (
-          <div className="stack-sm">
-            <p className="small">This erases your profile, schedule, status and plans in this browser.</p>
-            <div className="btn-row">
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirmReset(false)}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                onClick={() => {
-                  clearData()
-                  dispatch({ type: 'resetDemo', now: new Date() })
-                  navigate('/welcome')
-                }}
-              >
-                Erase demo data
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button type="button" className="btn-link danger" onClick={() => setConfirmReset(true)}>
-            Reset demo data…
-          </button>
-        )}
       </section>
 
       <button
         type="button"
         className="btn btn-danger btn-block"
-        onClick={() => {
-          dispatch({ type: 'signOut' })
-          navigate('/welcome')
+        disabled={signingOut}
+        onClick={async () => {
+          setSigningOut(true)
+          try {
+            await signOut()
+            navigate('/welcome', { replace: true })
+          } catch (error) {
+            toast.show(error instanceof Error ? error.message : 'Could not sign out.')
+          } finally {
+            setSigningOut(false)
+          }
         }}
       >
-        Sign out
+        {signingOut ? 'Signing out…' : 'Sign out'}
       </button>
     </div>
   )
