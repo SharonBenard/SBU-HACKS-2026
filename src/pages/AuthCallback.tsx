@@ -3,6 +3,25 @@ import { useNavigate } from 'react-router'
 import { createClient } from '../../utils/supabase/client'
 import { useApp } from '../state/context'
 
+/**
+ * A sign-in code can only be exchanged once: the first exchange consumes the
+ * PKCE verifier. React StrictMode runs effects twice in development, so share
+ * one exchange per code. Resolves to an error message, or null on success.
+ */
+const exchanges = new Map<string, Promise<string | null>>()
+
+function exchangeOnce(code: string): Promise<string | null> {
+  let pending = exchanges.get(code)
+  if (!pending) {
+    pending = createClient()
+      .then((client) => client.auth.exchangeCodeForSession(code))
+      .then(({ error }) => (error ? error.message : null))
+      .catch((error: unknown) => (error instanceof Error ? error.message : 'Could not complete sign-in.'))
+    exchanges.set(code, pending)
+  }
+  return pending
+}
+
 export function AuthCallback() {
   const { authLoading, authError, data } = useApp()
   const navigate = useNavigate()
@@ -18,21 +37,11 @@ export function AuthCallback() {
     const code = new URLSearchParams(window.location.search).get('code')
     if (!code) return
 
-    const exchange = async () => {
-      try {
-        const client = await createClient()
-        const { error: exchangeError } = await client.auth.exchangeCodeForSession(code)
-        if (!active) return
-        if (exchangeError) setError(exchangeError.message)
-        else setExchangeComplete(true)
-      } catch (exchangeError) {
-        if (active) {
-          setError(exchangeError instanceof Error ? exchangeError.message : 'Could not complete sign-in.')
-        }
-      }
-    }
-
-    void exchange()
+    void exchangeOnce(code).then((exchangeError) => {
+      if (!active) return
+      if (exchangeError) setError(exchangeError)
+      else setExchangeComplete(true)
+    })
     return () => {
       active = false
     }
