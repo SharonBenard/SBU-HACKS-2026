@@ -1,8 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../../src/types/database.types'
 
-let supabase: Promise<SupabaseClient> | undefined
+let supabase: Promise<SupabaseClient<Database>> | undefined
 
-export function createClient(): Promise<SupabaseClient> {
+export function createClient(): Promise<SupabaseClient<Database>> {
   if (supabase) return supabase
 
   const url = import.meta.env.VITE_SUPABASE_URL?.trim()
@@ -12,7 +13,7 @@ export function createClient(): Promise<SupabaseClient> {
   }
 
   supabase = import('@supabase/supabase-js').then(({ createClient: createSupabaseClient }) =>
-    createSupabaseClient(url, anonKey, {
+    createSupabaseClient<Database>(url, anonKey, {
       auth: {
         flowType: 'pkce',
         detectSessionInUrl: false,

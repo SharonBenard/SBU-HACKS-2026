@@ -8,6 +8,7 @@ import { isStatusActive } from './selectors'
 import { initialsOf } from '../lib/ids'
 import { createClient } from '../../utils/supabase/client'
 import type { Session as SupabaseSession, SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '../types/database.types'
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -21,7 +22,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [readyUserId, setReadyUserId] = useState<string | null>(null)
   const [realNow, setRealNow] = useState(() => new Date())
   const [sessionStart] = useState(() => new Date())
-  const clientRef = useRef<SupabaseClient | null>(null)
+  const clientRef = useRef<SupabaseClient<Database> | null>(null)
   const activeUserIdRef = useRef<string | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 

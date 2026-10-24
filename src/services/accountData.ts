@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AppData } from '../types'
+import type { Database, Json } from '../types/database.types'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -21,7 +22,7 @@ function isAppData(value: unknown): value is AppData {
   )
 }
 
-export async function loadAccountData(client: SupabaseClient, userId: string): Promise<AppData | null> {
+export async function loadAccountData(client: SupabaseClient<Database>, userId: string): Promise<AppData | null> {
   const { data, error } = await client
     .from('user_app_state')
     .select('data')
@@ -36,11 +37,12 @@ export async function loadAccountData(client: SupabaseClient, userId: string): P
   return data.data
 }
 
-export async function saveAccountData(client: SupabaseClient, userId: string, data: AppData): Promise<void> {
+export async function saveAccountData(client: SupabaseClient<Database>, userId: string, data: AppData): Promise<void> {
+  const json = JSON.parse(JSON.stringify(data)) as Json
   const { error } = await client.from('user_app_state').upsert(
     {
       user_id: userId,
-      data,
+      data: json,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'user_id' },
