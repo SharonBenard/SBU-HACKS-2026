@@ -9,8 +9,9 @@ import { DemoTag, Notice } from '../components/Notice'
 import { getActivity } from '../data/activities'
 import { addDays, atMinutes, fromTimeInput, toTimeInput } from '../lib/dates'
 import { sendPlanInvites } from '../services/notifications'
-import { createSharedPlan } from '../services/plansApi'
-import type { Activity, ReminderPref } from '../types'
+import { createSharedPlan, type NewPlan } from '../services/plansApi'
+import { newId } from '../lib/ids'
+import type { Activity, Plan, ReminderPref } from '../types'
 
 function costText(a: Activity): string {
   if (a.costMax === 0) return 'Free'
@@ -22,7 +23,7 @@ type Errors = Partial<Record<'title' | 'location' | 'date' | 'time' | 'form', st
 
 export function CreatePlan() {
   const world = useApp()
-  const { dispatch, today, userId } = world
+  const { dispatch, today, userId, demoMode } = world
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const activity = getActivity(params.get('activity'))
@@ -82,25 +83,35 @@ export function CreatePlan() {
       document.querySelector<HTMLElement>('[aria-invalid="true"], .error-text')?.scrollIntoView({ block: 'center' })
       return
     }
-    if (!userId) {
+    if (!userId && !demoMode) {
       setErrors({ form: 'Your session ended. Sign in again to create a plan.' })
       return
     }
+    const details: NewPlan = {
+      title: title.trim(),
+      location: location.trim(),
+      date,
+      start: s!,
+      end: e!,
+      cost: cost.trim() || 'Not set',
+      transport: transport.trim(),
+      note: note.trim(),
+      invitees: [...selected].map((personId) => ({ personId, rsvp: 'waiting' as const })),
+      activityId: activity?.id,
+      reminders,
+    }
     setSubmitting(true)
     try {
-      const plan = await createSharedPlan(userId, {
-        title: title.trim(),
-        location: location.trim(),
-        date,
-        start: s!,
-        end: e!,
-        cost: cost.trim() || 'Not set',
-        transport: transport.trim(),
-        note: note.trim(),
-        invitees: [...selected].map((personId) => ({ personId, rsvp: 'waiting' as const })),
-        activityId: activity?.id,
-        reminders,
-      })
+      // Demo mode has no account, so the plan stays local and isn't shareable.
+      const plan: Plan = userId
+        ? await createSharedPlan(userId, details)
+        : {
+            ...details,
+            id: newId('plan'),
+            leaderId: 'me',
+            inviteToken: newId('inv').slice(4),
+            createdAt: new Date().toISOString(),
+          }
       dispatch({ type: 'createPlan', plan })
       const delivery = await sendPlanInvites(plan)
       navigate(`/plan/${plan.id}/confirmed`, { replace: true, state: { delivery: delivery.detail } })

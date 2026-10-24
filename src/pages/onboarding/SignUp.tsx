@@ -4,9 +4,11 @@ import { MailCheck } from 'lucide-react'
 import { OnboardingFrame } from './OnboardingFrame'
 import { Notice } from '../../components/Notice'
 import { requestSignInLink, validateSignUp } from '../../services/auth'
+import { useApp } from '../../state/context'
 
 export function SignUp() {
   const navigate = useNavigate()
+  const { startDemo } = useApp()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState<{ name?: string; email?: string; form?: string }>({})
@@ -61,7 +63,7 @@ export function SignUp() {
             autoComplete="name"
             aria-invalid={!!errors.name}
             aria-describedby={errors.name ? 'name-err' : undefined}
-            placeholder="Abby Lin"
+            placeholder="Wolfie the Seawolf"
           />
           {errors.name && (
             <span id="name-err" className="error-text">
@@ -107,6 +109,17 @@ export function SignUp() {
           )}
         </button>
       </form>
+      <button
+        type="button"
+        className="btn btn-secondary btn-block"
+        onClick={() => {
+          startDemo()
+          navigate('/', { replace: true })
+        }}
+      >
+        Continue as demo
+      </button>
+      <Notice tone="demo">Demo access uses sample data only. It does not create an account or save changes.</Notice>
       <Notice tone="info">
         Supabase sends the one-time link. The database also enforces the @stonybrook.edu domain for new accounts.
       </Notice>
