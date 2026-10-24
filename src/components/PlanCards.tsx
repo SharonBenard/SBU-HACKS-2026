@@ -6,6 +6,7 @@ import { useRsvp } from '../state/hooks'
 import { planWhen } from '../lib/plans'
 import { personName, rsvpOf } from '../state/selectors'
 import { RSVP_LABELS } from '../lib/labels'
+import { DemoTag } from './Notice'
 
 export function RsvpBadge({ rsvp }: { rsvp: Rsvp }) {
   return <span className={`badge badge-${rsvp}`}>{RSVP_LABELS[rsvp]}</span>
@@ -21,7 +22,10 @@ export function InviteCard({ plan }: { plan: Plan }) {
     <article className="card card-invite stack" aria-labelledby={titleId}>
       <div>
         <div className="card-head">
-          <span className="badge badge-navy">Plan</span>
+          <span className="inline-icon">
+            <span className="badge badge-navy">Plan</span>
+            {!plan.shared && <DemoTag />}
+          </span>
           <span className="small muted">Invited by {personName(world, plan.leaderId, true)}</span>
         </div>
         <h3 id={titleId} style={{ fontSize: '1.25rem' }}>
@@ -72,6 +76,7 @@ export function PlanRow({ plan }: { plan: Plan }) {
               mine && <RsvpBadge rsvp={mine} />
             )}
             <span className="small muted">{going} going</span>
+            {!plan.shared && <DemoTag />}
           </div>
           <h3 style={{ fontSize: '1.1rem' }}>{plan.title}</h3>
           <p className="small muted">

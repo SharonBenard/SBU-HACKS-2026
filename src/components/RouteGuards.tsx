@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { useApp } from '../state/context'
+import { rememberReturnTo } from '../lib/returnTo'
 import type { OnboardingStep } from '../types'
 
 const STEP_PATH: Record<Exclude<OnboardingStep, 'done'>, string> = {
@@ -12,10 +14,19 @@ const STEP_PATH: Record<Exclude<OnboardingStep, 'done'>, string> = {
 export function RequireOnboarded() {
   const { data, authLoading } = useApp()
   const location = useLocation()
+  const from = location.pathname + location.search
   if (authLoading) return <p role="status">Connecting to Supabase…</p>
-  if (!data.session) return <Navigate to="/welcome" replace state={{ from: location.pathname + location.search }} />
-  if (data.onboarding !== 'done') return <Navigate to={STEP_PATH[data.onboarding]} replace />
+  if (!data.session) return <RedirectRemembering to="/welcome" from={from} />
+  if (data.onboarding !== 'done') return <RedirectRemembering to={STEP_PATH[data.onboarding]} from={from} />
   return <Outlet />
+}
+
+/** Redirect, remembering invite links so sign-in and onboarding can return to them. */
+function RedirectRemembering({ to, from }: { to: string; from: string }) {
+  useEffect(() => {
+    if (from.startsWith('/plan/')) rememberReturnTo(from)
+  }, [from])
+  return <Navigate to={to} replace />
 }
 
 /** Onboarding steps after sign-in. */

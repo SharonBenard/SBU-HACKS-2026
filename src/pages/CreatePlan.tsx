@@ -8,9 +8,9 @@ import { Avatar } from '../components/Avatar'
 import { DemoTag, Notice } from '../components/Notice'
 import { getActivity } from '../data/activities'
 import { addDays, atMinutes, fromTimeInput, toTimeInput } from '../lib/dates'
-import { newId } from '../lib/ids'
 import { sendPlanInvites } from '../services/notifications'
-import type { Activity, Plan, ReminderPref } from '../types'
+import { createSharedPlan } from '../services/plansApi'
+import type { Activity, ReminderPref } from '../types'
 
 function costText(a: Activity): string {
   if (a.costMax === 0) return 'Free'
@@ -18,11 +18,11 @@ function costText(a: Activity): string {
   return `$${a.costMin}–${a.costMax}`
 }
 
-type Errors = Partial<Record<'title' | 'location' | 'date' | 'time' | 'friends' | 'form', string>>
+type Errors = Partial<Record<'title' | 'location' | 'date' | 'time' | 'form', string>>
 
 export function CreatePlan() {
   const world = useApp()
-  const { dispatch, today } = world
+  const { dispatch, today, userId } = world
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const activity = getActivity(params.get('activity'))
@@ -60,7 +60,6 @@ export function CreatePlan() {
     if (next.has(id)) next.delete(id)
     else next.add(id)
     setSelected(next)
-    setErrors((x) => ({ ...x, friends: undefined }))
   }
 
   const sortedFriends = [...friends].sort((a, b) => Number(freeNow.has(b.id)) - Number(freeNow.has(a.id)))
@@ -72,7 +71,6 @@ export function CreatePlan() {
     if (!date || date < today) found.date = 'Pick today or a later date.'
     if (!timeValid) found.time = 'The end time must be after the start time.'
     else if (atMinutes(date, s!) < world.now) found.time = 'That start time has already passed.'
-    if (selected.size === 0) found.friends = 'Invite at least one friend.'
     return found
   }
 
@@ -84,31 +82,30 @@ export function CreatePlan() {
       document.querySelector<HTMLElement>('[aria-invalid="true"], .error-text')?.scrollIntoView({ block: 'center' })
       return
     }
-    const plan: Plan = {
-      id: newId('plan'),
-      title: title.trim(),
-      location: location.trim(),
-      date,
-      start: s!,
-      end: e!,
-      cost: cost.trim() || 'Not set',
-      transport: transport.trim(),
-      note: note.trim(),
-      leaderId: 'me',
-      invitees: [...selected].map((personId) => ({ personId, rsvp: 'waiting' as const })),
-      activityId: activity?.id,
-      inviteToken: newId('inv').slice(4),
-      createdAt: new Date().toISOString(),
-      reminders,
+    if (!userId) {
+      setErrors({ form: 'Your session ended. Sign in again to create a plan.' })
+      return
     }
     setSubmitting(true)
     try {
-      const delivery = await sendPlanInvites(plan)
+      const plan = await createSharedPlan(userId, {
+        title: title.trim(),
+        location: location.trim(),
+        date,
+        start: s!,
+        end: e!,
+        cost: cost.trim() || 'Not set',
+        transport: transport.trim(),
+        note: note.trim(),
+        invitees: [...selected].map((personId) => ({ personId, rsvp: 'waiting' as const })),
+        activityId: activity?.id,
+        reminders,
+      })
       dispatch({ type: 'createPlan', plan })
+      const delivery = await sendPlanInvites(plan)
       navigate(`/plan/${plan.id}/confirmed`, { replace: true, state: { delivery: delivery.detail } })
-    } catch {
-      setErrors({ form: "Couldn't create the plan. Try again." })
-    } finally {
+    } catch (error) {
+      setErrors({ form: error instanceof Error ? error.message : "Couldn't create the plan. Try again." })
       setSubmitting(false)
     }
   }
@@ -170,7 +167,9 @@ export function CreatePlan() {
               </label>
             )
           })}
-          {errors.friends && <p className="error-text">{errors.friends}</p>}
+          <p className="small muted">
+            Anyone with an SBU account can also join from the invite link you'll get next.
+          </p>
         </fieldset>
 
         <label className="field">
@@ -221,7 +220,7 @@ export function CreatePlan() {
               <span className="spinner" aria-hidden /> Creating plan…
             </>
           ) : (
-            `Create plan & invite ${selected.size || ''}`.trim()
+            selected.size > 0 ? `Create plan & invite ${selected.size}` : 'Create plan'
           )}
         </button>
       </form>

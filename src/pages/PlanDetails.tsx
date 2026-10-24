@@ -1,4 +1,5 @@
-import { Link, useParams, useSearchParams } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { Lock } from 'lucide-react'
 import { useApp, useToast } from '../state/context'
 import { getPerson, friendsFreeFor, isMine, isPlanUpcoming, personName, rsvpOf } from '../state/selectors'
@@ -12,25 +13,74 @@ import { RsvpBadge } from '../components/PlanCards'
 import { DemoTag, Notice } from '../components/Notice'
 import { formatDayShort, formatRange } from '../lib/dates'
 import { reminderDescription } from '../services/notifications'
+import { joinPlanByToken, updateDemoInvitees } from '../services/plansApi'
 import type { Rsvp } from '../types'
+
+/** One join per invite token, so StrictMode's double effect doesn't join twice. */
+const joins = new Map<string, Promise<string>>()
+function joinOnce(token: string): Promise<string> {
+  let pending = joins.get(token)
+  if (!pending) {
+    pending = joinPlanByToken(token)
+    pending.catch(() => joins.delete(token))
+    joins.set(token, pending)
+  }
+  return pending
+}
 
 export function PlanDetails() {
   const world = useApp()
-  const { dispatch } = world
+  const { dispatch, plansLoaded, plansError, refreshPlans } = world
   const toast = useToast()
   const setRsvp = useRsvp()
+  const navigate = useNavigate()
   const { id } = useParams()
   const [params] = useSearchParams()
+  const inviteToken = params.get('invite')
   const plan = world.data.plans.find((p) => p.id === id)
+  const hasPlan = !!plan
+  const [joinError, setJoinError] = useState<{ token: string; message: string } | null>(null)
+
+  // Opening an invite link for a plan I'm not in yet: join it, then reload my plans.
+  useEffect(() => {
+    if (hasPlan || !inviteToken || !plansLoaded) return
+    let active = true
+    joinOnce(inviteToken)
+      .then(async (planId) => {
+        await refreshPlans()
+        if (active && planId !== id) navigate(`/plan/${planId}?invite=${inviteToken}`, { replace: true })
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setJoinError({ token: inviteToken, message: error instanceof Error ? error.message : "Couldn't join this plan." })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [hasPlan, inviteToken, plansLoaded, refreshPlans, navigate, id])
 
   if (!plan) {
+    const failed = joinError && joinError.token === inviteToken ? joinError.message : null
+    if (!plansLoaded || (inviteToken && !failed && !plansError)) {
+      return (
+        <div className="page">
+          <PageHead title="" fallback="/plans" />
+          <div className="card stack-sm" aria-busy="true">
+            <p role="status">{inviteToken ? 'Joining plan…' : 'Loading plan…'}</p>
+            <div className="skeleton" style={{ height: 120 }} />
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="page">
         <PageHead title="" fallback="/plans" />
-        <EmptyState title="Plan not found" actions={<Link to="/plans" className="btn btn-primary">Go to plans</Link>}>
-          {params.get('invite')
-            ? 'This invite link was made in another browser. In the demo, plans are only saved on the device that created them.'
-            : 'It may have been removed, or the link is mistyped.'}
+        <EmptyState
+          title={failed ? "Couldn't open this invite" : 'Plan not found'}
+          actions={<Link to="/plans" className="btn btn-primary">Go to plans</Link>}
+        >
+          {failed ?? plansError ?? "It may have been removed, or the link is mistyped. Plans are private, so only the leader and invited people can open them."}
         </EmptyState>
       </div>
     )
@@ -58,21 +108,38 @@ export function PlanDetails() {
   const summary = [`${count('going')} going`, count('waiting') && `${count('waiting')} waiting`, count('not_going') && `${count('not_going')} not going`]
     .filter(Boolean)
     .join(' · ')
-  const waiting = plan.invitees.filter((i) => i.rsvp === 'waiting')
+  // Only sample friends can be simulated; real accounts answer for themselves.
+  const waitingDemo = plan.invitees.filter((i) => i.rsvp === 'waiting' && (i.demo || !plan.shared))
 
-  const simulateReplies = () => {
+  const simulateReplies = async () => {
     const free = friendsFreeFor(world, plan.date, plan.start, plan.end)
-    for (const i of waiting) {
-      dispatch({ type: 'rsvp', planId: plan.id, personId: i.personId, rsvp: free.has(i.personId) ? 'going' : 'not_going' })
+    const replies = new Map(waitingDemo.map((i) => [i.personId, (free.has(i.personId) ? 'going' : 'not_going') as Rsvp]))
+    for (const [personId, rsvp] of replies) dispatch({ type: 'rsvp', planId: plan.id, personId, rsvp })
+    if (plan.shared) {
+      try {
+        await updateDemoInvitees({
+          ...plan,
+          invitees: plan.invitees.map((i) => ({ ...i, rsvp: replies.get(i.personId) ?? i.rsvp })),
+        })
+      } catch (error) {
+        toast.show(error instanceof Error ? error.message : "Couldn't save the simulated replies.")
+        void refreshPlans()
+        return
+      }
     }
-    toast.show('Simulated replies: free friends said going, busy friends said not going.')
+    toast.show('Simulated replies: free sample friends said going, busy ones said not going.')
   }
 
   return (
     <div className="page">
       <PageHead title="" fallback="/plans" right={<Duck facing="left" width={30} />} />
-      {params.get('invite') && (
+      {inviteToken && !amLeader && (
         <Notice tone="info">You opened an invite link for this plan. RSVP below so {leaderFirst} knows.</Notice>
+      )}
+      {!plan.shared && (
+        <Notice tone="demo">
+          <DemoTag /> Sample plan from a demo friend. It's saved only in your account, not shared with anyone.
+        </Notice>
       )}
       <div className="stack-sm">
         <div className="inline-icon">
@@ -161,14 +228,17 @@ export function PlanDetails() {
                   <div className="name">
                     {p.personId === 'me' ? `${person?.name ?? 'You'} (you)` : person?.name ?? 'Unknown'}
                   </div>
-                  <div className="sub">{p.personId === 'me' && p.role !== 'Leader' ? 'You' : p.role}</div>
+                  <div className="sub">
+                    {p.personId === 'me' && p.role !== 'Leader' ? 'You' : p.role}
+                    {'demo' in p && p.demo ? ' · sample friend (demo)' : ''}
+                  </div>
                 </div>
                 <RsvpBadge rsvp={p.rsvp} />
               </div>
             )
           })}
         </div>
-        {amLeader && waiting.length > 0 && upcoming && (
+        {amLeader && waitingDemo.length > 0 && upcoming && (
           <button type="button" className="btn btn-secondary btn-sm" onClick={simulateReplies}>
             <DemoTag /> Simulate friends' replies
           </button>
@@ -187,7 +257,7 @@ export function PlanDetails() {
         </span>
       </p>
 
-      {upcoming && <InviteLink plan={plan} />}
+      {upcoming && plan.shared && <InviteLink plan={plan} />}
     </div>
   )
 }

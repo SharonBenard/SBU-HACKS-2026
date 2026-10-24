@@ -332,6 +332,10 @@ export type Database = {
         Args: { friend: string }
         Returns: { day_of_week: number; end_time: string; start_time: string }[]
       }
+      get_plan_people: {
+        Args: { plan_ids: string[] }
+        Returns: { plan_id: string; user_id: string; display_name: string | null }[]
+      }
       is_plan_member: { Args: { plan_uuid: string }; Returns: boolean }
       join_plan_by_token: { Args: { token: string }; Returns: string }
     }

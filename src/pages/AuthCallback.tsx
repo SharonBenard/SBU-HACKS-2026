@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { createClient } from '../../utils/supabase/client'
 import { useApp } from '../state/context'
+import { takeReturnTo } from '../lib/returnTo'
 
 /**
  * A sign-in code can only be exchanged once: the first exchange consumes the
@@ -50,7 +51,7 @@ export function AuthCallback() {
   useEffect(() => {
     if (!exchangeComplete || authLoading || !data.session) return
     const destination =
-      data.onboarding === 'done' ? '/' : `/onboarding/${data.onboarding}`
+      data.onboarding === 'done' ? (takeReturnTo() ?? '/') : `/onboarding/${data.onboarding}`
     navigate(destination, { replace: true })
   }, [exchangeComplete, authLoading, data.session, data.onboarding, navigate])
 

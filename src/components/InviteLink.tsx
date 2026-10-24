@@ -26,7 +26,8 @@ export function InviteLink({ plan }: { plan: Plan }) {
         </button>
       </div>
       <p className="small muted">
-        Demo: plans are saved in this browser only, so the link opens the plan here but not on a friend's phone yet.
+        Anyone who opens this link and signs in with an @stonybrook.edu email joins the plan and can RSVP. Only share it
+        with people you want there.
       </p>
     </div>
   )

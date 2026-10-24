@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { OnboardingFrame } from './OnboardingFrame'
 import { InterestPicker } from '../../components/InterestPicker'
 import { useApp } from '../../state/context'
+import { takeReturnTo } from '../../lib/returnTo'
 
 export function Interests() {
   const { data, dispatch } = useApp()
@@ -19,7 +20,7 @@ export function Interests() {
     }
     dispatch({ type: 'updateProfile', patch: { interests, commuter, town: commuter ? town.trim() : '' } })
     dispatch({ type: 'setOnboarding', step: 'done' })
-    navigate('/')
+    navigate(takeReturnTo() ?? '/')
   }
 
   return (
