@@ -21,7 +21,6 @@ import { Me } from './pages/Me'
 import { EditSchedule } from './pages/EditSchedule'
 import { Blocked } from './pages/Blocked'
 import { AuthCallback } from './pages/AuthCallback'
-
 function NotFound() {
   return (
     <div className="page">
