@@ -1,122 +1,76 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import { AppProvider } from './state/AppProvider'
+import { AppLayout } from './components/AppLayout'
+import { RedirectIfSignedIn, RequireOnboarded, RequireSession } from './components/RouteGuards'
+import { EmptyState } from './components/EmptyState'
+import { ScrollToTop } from './components/ScrollToTop'
+import { Welcome } from './pages/onboarding/Welcome'
+import { SignUp } from './pages/onboarding/SignUp'
+import { ImportSchedule } from './pages/onboarding/ImportSchedule'
+import { ReviewSchedule } from './pages/onboarding/ReviewSchedule'
+import { Interests } from './pages/onboarding/Interests'
+import { Home } from './pages/Home'
+import { SetStatus } from './pages/SetStatus'
+import { Suggestions } from './pages/Suggestions'
+import { CreatePlan } from './pages/CreatePlan'
+import { PlanConfirmed } from './pages/PlanConfirmed'
+import { PlanDetails } from './pages/PlanDetails'
+import { Plans } from './pages/Plans'
+import { FreeTime } from './pages/FreeTime'
+import { Me } from './pages/Me'
+import { EditSchedule } from './pages/EditSchedule'
+import { Blocked } from './pages/Blocked'
 
-function App() {
-  const [count, setCount] = useState(0)
-
+function NotFound() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    <div className="page">
+      <EmptyState
+        title="Page not found"
+        actions={
+          <Link to="/" className="btn btn-primary btn-block">
+            Back to home
+          </Link>
+        }
+      >
+        That link doesn't go anywhere.
+      </EmptyState>
+    </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <AppProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route element={<RedirectIfSignedIn />}>
+            <Route path="/welcome" element={<Welcome />} />
+            <Route path="/signup" element={<SignUp />} />
+          </Route>
+          <Route element={<RequireSession />}>
+            <Route path="/onboarding/schedule" element={<ImportSchedule />} />
+            <Route path="/onboarding/review" element={<ReviewSchedule />} />
+            <Route path="/onboarding/interests" element={<Interests />} />
+          </Route>
+          <Route element={<RequireOnboarded />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<Home />} />
+              <Route path="/status" element={<SetStatus />} />
+              <Route path="/suggestions" element={<Suggestions />} />
+              <Route path="/plans" element={<Plans />} />
+              <Route path="/plans/new" element={<CreatePlan />} />
+              <Route path="/plan/:id" element={<PlanDetails />} />
+              <Route path="/plan/:id/confirmed" element={<PlanConfirmed />} />
+              <Route path="/free-time" element={<FreeTime />} />
+              <Route path="/me" element={<Me />} />
+              <Route path="/me/schedule" element={<EditSchedule />} />
+              <Route path="/me/blocked" element={<Blocked />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AppProvider>
+  )
+}
