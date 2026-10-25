@@ -66,6 +66,8 @@ export type ReminderPref = 'day_before' | 'two_hours_before'
 export interface Invitee {
   personId: string
   rsvp: Rsvp
+  /** A sample friend, not a real account. Recorded on the plan for the demo only. */
+  demo?: boolean
 }
 
 export interface Plan {
@@ -84,6 +86,8 @@ export interface Plan {
   inviteToken: string
   createdAt: string
   reminders: ReminderPref[]
+  /** Stored in Supabase and visible to every member. Otherwise a local demo plan. */
+  shared?: boolean
 }
 
 export type TimeOfDay = 'morning' | 'afternoon' | 'evening'
@@ -151,11 +155,14 @@ export interface AppData {
   profile: UserProfile | null
   schedule: WeeklySchedule | null
   status: Status | null
+  /** Shared plans loaded from Supabase plus local demo plans. Only demo plans are saved in this blob. */
   plans: Plan[]
   friendships: Friendship[]
   blocked: string[]
   /** People invited by email who are not in the sample directory. */
   extraPeople: Person[]
+  /** Real accounts in my shared plans, loaded from Supabase and never saved in this blob. */
+  remotePeople?: Person[]
   /** ISO timestamp the demo clock is pinned to, or null for real time. */
   demoClock: string | null
 }

@@ -20,6 +20,7 @@ export type Action =
   | { type: 'setStatus'; status: Status }
   | { type: 'clearStatus' }
   | { type: 'createPlan'; plan: Plan }
+  | { type: 'setSharedPlans'; plans: Plan[]; people: Person[] }
   | { type: 'rsvp'; planId: string; personId: string; rsvp: Rsvp }
   | { type: 'respondRequest'; personId: string; accept: boolean }
   | { type: 'sendRequest'; person: Person; isNew: boolean }
@@ -64,7 +65,13 @@ export function reducer(state: AppData, action: Action): AppData {
     case 'clearStatus':
       return { ...state, status: null }
     case 'createPlan':
-      return { ...state, plans: [...state.plans, action.plan] }
+      return { ...state, plans: [...state.plans.filter((p) => p.id !== action.plan.id), action.plan] }
+    case 'setSharedPlans':
+      return {
+        ...state,
+        plans: [...state.plans.filter((p) => !p.shared), ...action.plans],
+        remotePeople: action.people,
+      }
     case 'rsvp':
       return {
         ...state,

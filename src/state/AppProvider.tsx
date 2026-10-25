@@ -3,6 +3,7 @@ import { AppContext, ToastContext, useApp, type AppContextValue } from './contex
 import { initialData, reducer } from './reducer'
 import { loadAccountData, saveAccountData } from '../services/accountData'
 import { getFriendStatuses } from '../services/friendsApi'
+import { fetchSharedPlans, syncDisplayName } from '../services/plansApi'
 import { minutesOfDay, toISODate } from '../lib/dates'
 import { isStatusActive } from './selectors'
 import { initialsOf } from '../lib/ids'
@@ -165,6 +166,45 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })
   }, [data, readyUserId])
 
+  const [plansLoadedFor, setPlansLoadedFor] = useState<string | null>(null)
+  const [plansError, setPlansError] = useState<string | null>(null)
+
+  const refreshPlans = useCallback(async () => {
+    const userId = activeUserIdRef.current
+    if (!userId) return
+    try {
+      const { plans, people } = await fetchSharedPlans(userId)
+      if (activeUserIdRef.current !== userId) return
+      dispatch({ type: 'setSharedPlans', plans, people })
+      setPlansError(null)
+    } catch (error) {
+      if (activeUserIdRef.current === userId) setPlansError(errorMessage(error))
+    } finally {
+      if (activeUserIdRef.current === userId) setPlansLoadedFor(userId)
+    }
+  }, [])
+
+  // Load shared plans once the account is ready, and again whenever the tab
+  // comes back into view so RSVPs from other phones show up.
+  useEffect(() => {
+    if (!readyUserId) return
+    void Promise.resolve().then(refreshPlans)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void refreshPlans()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [readyUserId, refreshPlans])
+
+  // Other plan members see my profiles.display_name, which defaults to my NetID.
+  const profileName = data.profile?.name
+  useEffect(() => {
+    if (!readyUserId || !profileName) return
+    syncDisplayName(readyUserId, profileName).catch((error: unknown) => {
+      if (activeUserIdRef.current === readyUserId) setPersistenceError(errorMessage(error))
+    })
+  }, [readyUserId, profileName])
+
   const value = useMemo<AppContextValue>(() => {
     const now = data.demoClock ? new Date(data.demoClock) : realNow
     const statusBase = data.demoClock ? new Date(data.demoClock) : sessionStart
@@ -178,11 +218,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
       authLoading,
       authError,
       persistenceError,
+      userId: readyUserId,
+      // Demo mode has no account, so there are no shared plans to wait for.
+      plansLoaded: demoMode || (readyUserId !== null && plansLoadedFor === readyUserId),
+      plansError,
+      refreshPlans,
       demoMode,
       startDemo,
       endDemo,
     }
-  }, [data, realNow, sessionStart, authLoading, authError, persistenceError, demoMode, startDemo, endDemo])
+  }, [
+    data,
+    realNow,
+    sessionStart,
+    authLoading,
+    authError,
+    persistenceError,
+    readyUserId,
+    plansLoadedFor,
+    plansError,
+    refreshPlans,
+    demoMode,
+    startDemo,
+    endDemo,
+  ])
 
   return (
     <AppContext.Provider value={value}>

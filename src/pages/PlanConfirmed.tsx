@@ -28,7 +28,8 @@ export function PlanConfirmed() {
     )
   }
 
-  const names = plan.invitees.map((i) => personName(world, i.personId, true))
+  const realNames = plan.invitees.filter((i) => !i.demo).map((i) => personName(world, i.personId, true))
+  const demoNames = plan.invitees.filter((i) => i.demo).map((i) => personName(world, i.personId, true))
   return (
     <div className="page">
       <div className="confirm-hero" aria-hidden>
@@ -47,11 +48,13 @@ export function PlanConfirmed() {
           </p>
         </div>
         <p>
-          Invites go to {listNames(names)}. They'll RSVP going or not going.
+          {realNames.length > 0 ? `${listNames(realNames)} can RSVP now. ` : ''}
+          Share the link below in your group chat so friends can join and RSVP going or not going.
         </p>
       </div>
       <Notice tone="demo">
-        <DemoTag /> {delivery ?? 'No email or push notification was sent.'} Share the link below in your group chat.
+        <DemoTag /> {delivery ?? 'No email or push notification was sent.'}
+        {demoNames.length > 0 && ` ${listNames(demoNames)} ${demoNames.length === 1 ? 'is a sample friend' : 'are sample friends'} added for the demo.`}
       </Notice>
       <InviteLink plan={plan} />
       <Link to={`/plan/${plan.id}`} className="btn btn-primary btn-block">

@@ -31,14 +31,18 @@ export async function loadAccountData(client: SupabaseClient<Database>, userId: 
 
   if (error) throw new Error(`Could not load your saved account data: ${error.message}`)
   if (!data) return null
-  if (!isAppData(data.data)) {
+  const saved = data.data
+  if (!isAppData(saved)) {
     throw new Error('Your saved account data has an unsupported format. Contact the project maintainer.')
   }
-  return data.data
+  const app: AppData = saved
+  return { ...app, plans: app.plans.filter((p) => !p.shared) }
 }
 
 export async function saveAccountData(client: SupabaseClient<Database>, userId: string, data: AppData): Promise<void> {
-  const json = JSON.parse(JSON.stringify(data)) as Json
+  // Shared plans and the people in them live in their own tables; only local demo plans belong in this blob.
+  const personal: AppData = { ...data, plans: data.plans.filter((p) => !p.shared), remotePeople: undefined }
+  const json = JSON.parse(JSON.stringify(personal)) as Json
   const { error } = await client.from('user_app_state').upsert(
     {
       user_id: userId,

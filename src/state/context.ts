@@ -17,6 +17,13 @@ export interface AppContextValue extends World {
   authLoading: boolean
   authError: string | null
   persistenceError: string | null
+  /** Supabase user id of the signed-in account. */
+  userId: string | null
+  /** True once shared plans have loaded for the signed-in account (always true in demo mode). */
+  plansLoaded: boolean
+  plansError: string | null
+  /** Reload shared plans from Supabase. */
+  refreshPlans: () => Promise<void>
   demoMode: boolean
   startDemo: () => void
   endDemo: () => void

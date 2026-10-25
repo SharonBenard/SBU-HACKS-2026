@@ -24,7 +24,11 @@ export function getMyStatus(w: World): Status | null {
 
 export function getPerson(w: World, id: string): Person | undefined {
   if (id === 'me') return w.data.profile ?? undefined
-  return getFriendDirectory().find((p) => p.id === id) ?? w.data.extraPeople.find((p) => p.id === id)
+  return (
+    getFriendDirectory().find((p) => p.id === id) ??
+    w.data.remotePeople?.find((p) => p.id === id) ??
+    w.data.extraPeople.find((p) => p.id === id)
+  )
 }
 
 export function personName(w: World, id: string, short = false): string {
