@@ -96,7 +96,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           nextData.profile?.name ||
           (typeof session.user.user_metadata.display_name === 'string'
             ? session.user.user_metadata.display_name
-            : email.split('@')[0])
+            : typeof session.user.user_metadata.full_name === 'string'
+              ? session.user.user_metadata.full_name
+              : typeof session.user.user_metadata.name === 'string'
+                ? session.user.user_metadata.name
+                : email.split('@')[0])
 
         nextData.session = {
           userId,

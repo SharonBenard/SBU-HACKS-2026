@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { MailCheck } from 'lucide-react'
 import { OnboardingFrame } from './OnboardingFrame'
 import { Notice } from '../../components/Notice'
-import { requestSignInLink, validateSignUp } from '../../services/auth'
+import { requestSignInLink, signInWithGoogle, validateSignUp } from '../../services/auth'
 import { useApp } from '../../state/context'
 
 export function SignUp() {
@@ -13,6 +13,7 @@ export function SignUp() {
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState<{ name?: string; email?: string; form?: string }>({})
   const [sending, setSending] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null)
 
   const submit = async (e: FormEvent) => {
@@ -99,7 +100,7 @@ export function SignUp() {
             {errors.form}
           </Notice>
         )}
-        <button type="submit" className="btn btn-primary btn-block" disabled={sending}>
+        <button type="submit" className="btn btn-primary btn-block" disabled={sending || googleLoading}>
           {sending ? (
             <>
               <span className="spinner" aria-hidden /> Sending link…
@@ -109,9 +110,40 @@ export function SignUp() {
           )}
         </button>
       </form>
+      <div className="stack-sm">
+        <button
+          type="button"
+          className="btn btn-secondary btn-block"
+          disabled={sending || googleLoading}
+          onClick={async () => {
+            setGoogleLoading(true)
+            setErrors({})
+            try {
+              const result = await signInWithGoogle()
+              if (!result.ok) setErrors({ form: result.error })
+            } catch (error) {
+              setErrors({ form: error instanceof Error ? error.message : 'Could not start Google sign-in.' })
+            } finally {
+              setGoogleLoading(false)
+            }
+          }}
+        >
+          {googleLoading ? (
+            <>
+              <span className="spinner" aria-hidden /> Connecting to Google…
+            </>
+          ) : (
+            'Continue with Google'
+          )}
+        </button>
+        <p className="small muted" style={{ textAlign: 'center' }}>
+          Choose your Stony Brook Google account ending in @stonybrook.edu.
+        </p>
+      </div>
       <button
         type="button"
         className="btn btn-secondary btn-block"
+        disabled={sending || googleLoading}
         onClick={() => {
           startDemo()
           navigate('/', { replace: true })

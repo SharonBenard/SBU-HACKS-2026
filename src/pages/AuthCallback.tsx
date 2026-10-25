@@ -11,6 +11,20 @@ import { takeReturnTo } from '../lib/returnTo'
  */
 const exchanges = new Map<string, Promise<string | null>>()
 
+function callbackError(): string | null {
+  const url = new URL(window.location.href)
+  if (url.searchParams.has('code')) return null
+
+  const hash = new URLSearchParams(url.hash.slice(1))
+  const description = url.searchParams.get('error_description') ?? hash.get('error_description')
+  if (description) return description
+
+  const error = url.searchParams.get('error') ?? hash.get('error')
+  if (error) return `Authentication failed (${error}). Try another sign-in method or contact the project maintainer.`
+
+  return 'This link is missing its sign-in code. Request a fresh email link, or try signing in with Google.'
+}
+
 function exchangeOnce(code: string): Promise<string | null> {
   let pending = exchanges.get(code)
   if (!pending) {
@@ -27,11 +41,7 @@ export function AuthCallback() {
   const { authLoading, authError, data } = useApp()
   const navigate = useNavigate()
   const [exchangeComplete, setExchangeComplete] = useState(false)
-  const [error, setError] = useState<string | null>(() =>
-    new URLSearchParams(window.location.search).has('code')
-      ? null
-      : 'This sign-in link is missing its code. Request a new link and try again.',
-  )
+  const [error, setError] = useState<string | null>(callbackError)
 
   useEffect(() => {
     let active = true
@@ -59,10 +69,10 @@ export function AuthCallback() {
     return (
       <main className="page">
         <div className="card stack">
-          <h1>Sign-in link could not be used</h1>
+          <h1>Sign-in could not be completed</h1>
           <p role="alert">{error ?? authError}</p>
           <button type="button" className="btn btn-primary" onClick={() => navigate('/signup', { replace: true })}>
-            Request a new link
+            Back to sign in
           </button>
         </div>
       </main>

@@ -3,8 +3,8 @@
 A mobile-first web app that helps Stony Brook students find shared free time with friends, get activity ideas
 that fit everyone's time and budget, and make private plans friends RSVP to.
 
-Built with React 19, TypeScript, Vite, React Router and Supabase. Email-link authentication and each signed-in
-user's profile, schedule, status and plan state are stored in Supabase. Friend directories and friends' schedules
+Built with React 19, TypeScript, Vite, React Router and Supabase. Google OAuth and email-link authentication are
+available; each signed-in user's profile, schedule, status and plan state are stored in Supabase. Friend directories and friends' schedules
 and statuses, activity suggestions and venue data remain sample/demo data.
 
 ## Supabase setup
@@ -16,7 +16,9 @@ and statuses, activity suggestions and venue data remain sample/demo data.
    `003_enforce_sbu_email_updates.sql` in the Supabase SQL Editor. Migration 002 adds the required relational
    `plans` and `plan_invitees` tables by safely renaming the initial `events` tables, and tightens their RLS.
    It also retains `user_app_state` for the current app persistence adapter.
-3. In Supabase Auth URL Configuration, set the local site URL to `http://localhost:5173` and add
+3. Configure Google OAuth in Google Cloud Console and Supabase Auth > Providers > Google. Add Supabase's callback
+   URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as an authorized redirect URI in Google Cloud.
+   In Supabase Auth URL Configuration, set the local site URL to `http://localhost:5173` and add
    `http://localhost:5173/auth/callback` to the allowed redirect URLs. Add the equivalent callback URL for each
    deployed origin.
 4. In Supabase Dashboard > Authentication > Hooks, enable the `public.enforce_sbu_access_token` function as the
@@ -27,8 +29,8 @@ and statuses, activity suggestions and venue data remain sample/demo data.
    npx supabase gen types typescript --project-id <project-ref> --schema public > src/types/database.types.ts
    ```
    Commit the generated file together with the migrations so the team has one shared schema contract.
-6. Run the app and sign up with an `@stonybrook.edu` address. Supabase sends a one-time link; opening it returns
-   to `/auth/callback`.
+6. Run the app and sign in with your Stony Brook Google account or request an email link using an
+   `@stonybrook.edu` address. Both methods return to `/auth/callback`; the SBU domain restriction still applies.
 
 If a local environment file already exists, ensure it is named `.env.local` and uses the `VITE_` variable names.
 Vite does not load a file named `.env local` or variables named `NEXT_PUBLIC_*`.
@@ -92,7 +94,7 @@ the current (or pinned demo) time, so the sample data works on any day.
 
 | Area | Status in this build | Where to replace |
 | --- | --- | --- |
-| **Authentication** | Supabase Auth sends PKCE email links. The `@stonybrook.edu` domain is checked in the UI and by the auth-user database triggers. | `src/services/auth.ts`, `src/pages/AuthCallback.tsx`, `supabase/migrations/001_init.sql`, `supabase/migrations/003_enforce_sbu_email_updates.sql` |
+| **Authentication** | Supabase Auth supports Google OAuth and PKCE email links. The `@stonybrook.edu` domain is enforced by auth-user database triggers and the access-token hook. | `src/services/auth.ts`, `src/pages/AuthCallback.tsx`, `supabase/migrations/001_init.sql`, `supabase/migrations/003_enforce_sbu_email_updates.sql`, `supabase/migrations/004_fix_sbu_access_token_hook.sql` |
 | **Schedule parsing** | Simulated. The uploaded image isn't read or uploaded; a fixed sample schedule is returned for review. Manual entry works fully. | `src/services/scheduleParser.ts` → a server-side route calling a vision model |
 | **Activity suggestions** | Real when `ANTHROPIC_API_KEY` is set on the server: Claude picks and explains up to 3 activities from a rule-filtered shortlist of the curated list (`/api/suggest`, `server/suggest.ts`). Without a key, or for signed-out demo users unless `AI_ALLOW_ANONYMOUS=true`, the rule-based picks are shown and labeled. | — |
 | **Activity data** | Hand-curated local spots. Costs are rough estimates, not live prices; no live hours or availability. Some venues are generic ("Bowling alley near campus"). | `src/data/activities.ts` |

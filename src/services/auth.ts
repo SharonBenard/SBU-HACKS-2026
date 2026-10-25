@@ -28,6 +28,20 @@ export async function requestSignInLink(email: string, name: string): Promise<Si
   return { ok: true, email: normalized }
 }
 
+export async function signInWithGoogle(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      queryParams: { prompt: 'select_account' },
+    },
+  })
+
+  if (error) return { ok: false, error: error.message }
+  return { ok: true }
+}
+
 export async function signOut(): Promise<void> {
   const supabase = await createClient()
   const { error } = await supabase.auth.signOut()
