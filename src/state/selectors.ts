@@ -1,5 +1,6 @@
 import type { Energy, FriendRecord, Person, Plan, Rsvp, Status } from '../types'
 import type { World } from './context'
+import type { SuggestionInput } from '../services/recommendations'
 import { getFriendDirectory } from '../services/friendsApi'
 import { atMinutes, roundUp } from '../lib/dates'
 import {
@@ -148,4 +149,18 @@ export function friendsFreeFor(w: World, date: string, start: number, end: numbe
       })
       .map((f) => f.id),
   )
+}
+
+/** What the suggestion service needs for a matched slot. */
+export function suggestionInputFor(w: World, match: StatusMatch): SuggestionInput | null {
+  if (!match.slot) return null
+  return {
+    date: match.slot.date,
+    start: match.slot.start,
+    end: match.slot.end,
+    mine: { activity: match.status.activity, budget: match.status.budget, energy: match.status.energy },
+    myInterests: w.data.profile?.interests ?? [],
+    commuter: w.data.profile?.commuter ?? false,
+    friends: match.friends.map((f) => ({ interests: f.friend.interests, status: f.status })),
+  }
 }

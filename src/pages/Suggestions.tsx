@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowRight, RotateCcw } from 'lucide-react'
 import { useApp, useToast } from '../state/context'
-import { alternativeSlots, computeMatch, getMyStatus, remainingWindow, type StatusMatch } from '../state/selectors'
+import { alternativeSlots, computeMatch, getMyStatus, remainingWindow, suggestionInputFor, type StatusMatch } from '../state/selectors'
 import { PageHead } from '../components/PageHead'
 import { Avatar } from '../components/Avatar'
 import { ActivityArt } from '../components/ActivityArt'
@@ -12,6 +12,7 @@ import { DemoTag, Notice } from '../components/Notice'
 import { DAY_SHORT, formatDayLong, formatDayShort, formatDuration, formatRange, formatTime, relativeDayLong, weekdayIndex } from '../lib/dates'
 import { activityLabel } from '../lib/labels'
 import { statusHeadline } from '../lib/statusText'
+import { copyText } from '../lib/clipboard'
 import { suggestActivities, type SuggestionInput, type SuggestionResult } from '../services/recommendations'
 import type { Status } from '../types'
 
@@ -46,6 +47,7 @@ type Loaded = { key: string; result?: SuggestionResult; error?: string }
 function SuggestionCard({ match }: { match: StatusMatch }) {
   const world = useApp()
   const navigate = useNavigate()
+  const toast = useToast()
   const slot = match.slot!
   const status = match.status
   const [attempt, setAttempt] = useState(0)
@@ -54,14 +56,7 @@ function SuggestionCard({ match }: { match: StatusMatch }) {
   const [ownIdea, setOwnIdea] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const input: SuggestionInput = {
-    start: slot.start,
-    end: slot.end,
-    mine: { activity: status.activity, budget: status.budget, energy: status.energy },
-    friendStatuses: match.friends.flatMap((f) => (f.status ? [f.status] : [])),
-    interests: [world.data.profile?.interests ?? [], ...match.friends.map((f) => f.friend.interests)],
-  }
-  const key = JSON.stringify(input)
+  const key = JSON.stringify(suggestionInputFor(world, match))
 
   useEffect(() => {
     let cancelled = false
@@ -148,7 +143,10 @@ function SuggestionCard({ match }: { match: StatusMatch }) {
         )}
 
         {!current && (
-          <div className="stack-sm" aria-busy="true" aria-label="Loading ideas">
+          <div className="stack-sm" aria-busy="true" aria-label="Asking Claude for ideas">
+            <p className="small muted" role="status">
+              Asking Claude for ideas that fit your group…
+            </p>
             {[0, 1, 2].map((i) => (
               <div key={i} className="skeleton" style={{ height: 96 }} />
             ))}
@@ -173,7 +171,7 @@ function SuggestionCard({ match }: { match: StatusMatch }) {
                 Add your own idea below.
               </p>
             )}
-            {activities.map(({ activity, minMinutes, maxMinutes }) => (
+            {activities.map(({ activity, minMinutes, maxMinutes, why }) => (
               <label key={activity.id} className="activity-option">
                 <ActivityArt art={activity.art} />
                 <span className="grow">
@@ -181,7 +179,7 @@ function SuggestionCard({ match }: { match: StatusMatch }) {
                   <span className="opt-line">
                     About {formatDuration(minMinutes, maxMinutes)} · {activity.costLabel}
                   </span>
-                  <span className="opt-line">Best for {activity.bestFor}</span>
+                  <span className="opt-line">{why ?? `Best for ${activity.bestFor}`}</span>
                   <span className="opt-line muted">
                     {activity.place} · {activity.transport}
                   </span>
@@ -225,15 +223,42 @@ function SuggestionCard({ match }: { match: StatusMatch }) {
             )}
           </fieldset>
         )}
+        {current?.result?.groupMessage && (
+          <div className="copy-box">
+            <div className="grow">
+              <span className="small muted">Message for the group chat</span>
+              <p className="small" style={{ fontWeight: 600 }}>
+                {current.result.groupMessage}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ background: 'var(--navy)', color: '#fff' }}
+              onClick={async () => {
+                const ok = await copyText(current.result!.groupMessage!)
+                toast.show(ok ? 'Message copied.' : "Couldn't copy. Press and hold the message to copy it.")
+              }}
+            >
+              Copy<span className="visually-hidden"> group chat message</span>
+            </button>
+          </div>
+        )}
         <p className="small muted">
           Costs and options are estimates from a curated list of local spots, not live prices or availability.
         </p>
       </section>
 
-      <Notice tone="demo">
-        <DemoTag /> A rule-based ranker stands in for the AI service. Who's free is always calculated from schedules and
-        statuses, not by AI.
-      </Notice>
+      {current?.result?.source === 'ai' ? (
+        <Notice tone="info" icon="none">
+          Picked by Claude from our curated list. Who's free is always calculated from schedules and statuses, not by AI.
+        </Notice>
+      ) : current?.result ? (
+        <Notice tone="demo">
+          <DemoTag /> Showing rule-based picks. {current.result.fallbackReason} Who's free is always calculated from
+          schedules and statuses, not by AI.
+        </Notice>
+      ) : null}
 
       {error && (
         <p className="error-text" role="alert">

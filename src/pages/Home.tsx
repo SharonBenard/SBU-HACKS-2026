@@ -13,6 +13,7 @@ import {
   isPlanUpcoming,
   rsvpOf,
   sortPlans,
+  suggestionInputFor,
 } from '../state/selectors'
 import { Avatar } from '../components/Avatar'
 import { Duck } from '../components/Duck'
@@ -229,13 +230,8 @@ function SuggestionPreview({ myStatus }: { myStatus: Status | null }) {
     )
   }
 
-  const ideas = rankActivities({
-    start: match.slot.start,
-    end: match.slot.end,
-    mine: myStatus,
-    friendStatuses: match.friends.flatMap((f) => (f.status ? [f.status] : [])),
-    interests: [world.data.profile?.interests ?? [], ...match.friends.map((f) => f.friend.interests)],
-  }).activities.length
+  const suggestionInput = suggestionInputFor(world, match)
+  const ideas = suggestionInput ? rankActivities(suggestionInput).activities.length : 0
   const n = match.friends.length
   const day = relativeDay(match.slot.date, today)
   const when = isNow(myStatus, today, nowMinutes)
